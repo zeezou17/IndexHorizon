@@ -29,6 +29,6 @@ class Column:
     def size(self, size_of_data: int):
         self._size = size_of_data
 
-    def __str__(self) :
+    def __str__(self):
         return "[ name :" + self._name + ", datatype : " + self._datatype + ", size( in bytes) : " + str(
             self._size) + " ]"

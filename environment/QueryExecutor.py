@@ -23,16 +23,16 @@ class QueryExecutor:
 
         for table_column in returned_table_details:
             # table_column will have
-            #       position 0: table_name
-            #       position 1: column_name
-            #       position 2: data type and size
-            #       position 3: primary key (true , false)
+            #       at position 0: table_name
+            #       at position 1: column_name
+            #       at position 2: data type and size
+            #       at position 3: primary key (true , false)
 
-            # find column size
             data_type = table_column[2]
-            data_size = 0
             table_name = table_column[0]
             column_name = table_column[1]
+
+            # find column size
             # fixed length data types are stored in map
             if data_type in Constants.POSTGRES_DATA_TYPE_SIZE_MAP:
                 data_size = Constants.POSTGRES_DATA_TYPE_SIZE_MAP[data_type]
@@ -42,6 +42,8 @@ class QueryExecutor:
             else:
                 # size is present with in brackets
                 # examples : "character varying(44)" , "numeric(15,2)" , "character(25)"
+
+                # extract size information
                 from_index = data_type.find("(")
                 to_index = data_type.find(")")
                 temp_text = str(data_type[from_index + 1:to_index])
