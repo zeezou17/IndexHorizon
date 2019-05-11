@@ -1,14 +1,61 @@
-# import postgres connector class
-from environment.PostgresSqlExecutor import PostgresSqlExecutor
+# imports
+from typing import Dict
+from environment.PostgresQueryHandler import PostgresQueryHandler
+from environment.Utils import Utils
+from environment.Constants import Constants
+from environment.Table import Table
+from environment.Column import Column
 
-PostgresSqlExecutor.create_hypo_index("orders", "o_comment")
-PostgresSqlExecutor.create_hypo_index("orders", "o_custkey")
-PostgresSqlExecutor.create_hypo_index("lineitem", "l_orderkey")
 
-print()
-print(PostgresSqlExecutor.execute_select_query("SELECT * FROM hypopg_list_indexes()"))
-print()
+# class
+class QueryExecutor:
+    # tables_map will hold table name and columne details
+    tables_map: Dict[str, Table] = dict()
 
-PostgresSqlExecutor.remove_hypo_index("orders", "o_custkey")
-print("After removal")
-print(PostgresSqlExecutor.execute_select_query("SELECT * FROM hypopg_list_indexes()"))
+    @staticmethod
+    def initialize_table_information():
+        # get list of tables
+        tables = tuple(Utils.read_config_data(Constants.CONFIG_TABLES).keys())
+
+        # call postgres to get table details from database
+        returned_table_details = PostgresQueryHandler.execute_select_query(
+            Constants.QUERY_GET_TABLE_DETAILS.format(tables))
+
+        for table_column in returned_table_details:
+            # table_column will have
+            #       position 0: table_name
+            #       position 1: column_name
+            #       position 2: data type and size
+            #       position 3: primary key (true , false)
+
+            # find column size
+            data_type = table_column[2]
+            data_size = 0
+            table_name = table_column[0]
+            column_name = table_column[1]
+            # fixed length data types are stored in map
+            if data_type in Constants.POSTGRES_DATA_TYPE_SIZE_MAP:
+                data_size = Constants.POSTGRES_DATA_TYPE_SIZE_MAP[data_type]
+
+            # if data_type is not present in dict then it is variable length data type ,
+            # data size needs to extracted from the text present data_type
+            else:
+                # size is present with in brackets
+                # examples : "character varying(44)" , "numeric(15,2)" , "character(25)"
+                from_index = data_type.find("(")
+                to_index = data_type.find(")")
+                temp_text = str(data_type[from_index + 1:to_index])
+                data_size = sum(int(val) for val in temp_text.split(','))
+
+            # check whether map entry exists for table if not create one
+            if table_name not in QueryExecutor.tables_map:
+                QueryExecutor.tables_map[table_name] = Table(table_name)
+
+            # add column  to table object
+            QueryExecutor.tables_map[table_name].add_column(Column(column_name, data_type, data_size))
+
+
+query = QueryExecutor()
+query.initialize_table_information()
+for key, value in query.tables_map.items():
+    print(value)
