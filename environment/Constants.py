@@ -1,4 +1,6 @@
-global Constants
+# This class holds
+#  all constants in the environment package
+#  postgres sql queries
 
 
 class Constants(object):
@@ -37,7 +39,7 @@ class Constants(object):
     CONFIG_TABLES = 'Tables'
     CONFIG_DATABASE = 'Database'
     POSTGRES_DATA_TYPE_SIZE_MAP = {'bigint': 8, 'boolean': 1, 'date': 4, 'integer': 4, 'smallint': 2, 'double': 8}
-
+    # this is added to restrict modification of constant attributes/ fields
     def __setattr__(self, *_):
         pass
 

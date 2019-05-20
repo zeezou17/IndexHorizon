@@ -1,5 +1,5 @@
 # imports
-from typing import Dict
+from typing import Dict, List
 from environment.PostgresQueryHandler import PostgresQueryHandler
 from environment.Utils import Utils
 from environment.Constants import Constants
@@ -56,8 +56,20 @@ class QueryExecutor:
             # add column  to table object
             QueryExecutor.tables_map[table_name].add_column(Column(column_name, data_type, data_size))
 
+    @staticmethod
+    def create_query_matrix(queries: List[str]):
+        for query in queries:
+            PostgresQueryHandler.get_where_clause_list_for_query(query)
+            break
 
-query = QueryExecutor()
-query.initialize_table_information()
-for key, value in query.tables_map.items():
-    print(value)
+    @staticmethod
+    def find_single_query_cost(query: str):
+        print(query)
+
+
+query_executor = QueryExecutor()
+query_executor.initialize_table_information()
+Utils.get_queries_from_sql_file(query_executor.tables_map)
+#query_executor.create_query_matrix(Utils.get_queries_from_sql_file())
+# for key, value in query_executor.tables_map.items():
+#     print(value)

@@ -2,6 +2,7 @@ import psycopg2
 import sys
 from environment.Utils import Utils
 from environment.Constants import Constants
+from pglast import Node, parse_sql
 
 
 class PostgresQueryHandler:
@@ -48,11 +49,9 @@ class PostgresQueryHandler:
     @staticmethod
     def execute_select_query_and_get_row_count(query):
         cursor = PostgresQueryHandler.__get_connection().cursor()
-        # remove all values before from and replace with select count(*) and remove order by clause if present
+        # trim whitespaces and add wrapper query to get count of rows i.e select count(*) from (<QUERY>) table1
         query_to_execute = ' '.join(query.strip().replace('\n', ' ').lower().split())
-        from_index = query_to_execute.find("from")
-        to_index = query_to_execute.find("order by")
-        query_to_execute = "Select count(*) " + query_to_execute[from_index:to_index]
+        query_to_execute = "Select count(*) from (" + query_to_execute + " ) table1"
         cursor.execute(query_to_execute)
         returned_count = cursor.fetchone()
         cursor.close()
@@ -86,3 +85,10 @@ class PostgresQueryHandler:
         cursor = PostgresQueryHandler.__get_connection().cursor()
         cursor.execute(Constants.QUERY_REMOVE_ALL_HYPO_INDEXES)
         cursor.close()
+
+    @staticmethod
+    def get_where_clause_list_for_query(query: str):
+        query_tree = Node(parse_sql(query))
+        for tre in query_tree:
+            for node in tre.stmt.whereClause:
+                print(str(node))
