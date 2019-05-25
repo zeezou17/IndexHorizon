@@ -27,5 +27,5 @@ STEPS FOR SAMPLE TRAINING:
 6. Next Run the experiment using the command "/scripts/evaluate.sh" 
    --> This must be run under the directory "drl-frameworks-master/<framework>" 
 7. You will get this message "--- EVALUATION COMPLETED ---" 
-8. After this, you will receive a website link i.e. http://NAME:xxxx (x--> integer) 
+8. After this, run "tensorboard --logdir=results",this plots the results from the results foler and you will receive a website link i.e. http://NAME:xxxx (x--> integer) 
 9. You can view the results in the website link.
