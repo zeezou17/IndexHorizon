@@ -5,7 +5,8 @@
 
 class Constants(object):
     QUERY_CREATE_HYPO_INDEX = "SELECT indexrelid FROM hypopg_create_index('CREATE INDEX ON  {0}({1})')"
-    QUERY_REMOVE_HYPO_INDEX = "select * from hypopg_drop_index({0})"
+    QUERY_REMOVE_HYPO_INDEX = "select * from hypopg_drop_index( {0} )"
+    QUERY_FIND_SELECTIVITY="select count(1) from {0} where {1}"
     QUERY_REMOVE_ALL_HYPO_INDEXES = "select * from  hypopg_reset()"
     QUERY_GET_TABLE_DETAILS = "SELECT DISTINCT " \
                               "             pgc.relname as table_name , " \
@@ -33,12 +34,21 @@ class Constants(object):
                               "   AND a.attnum > 0 AND pgc.oid = a.attrelid " \
                               "	  AND pg_table_is_visible(pgc.oid) " \
                               "	  AND NOT a.attisdropped " \
-                              "	  AND pgc.relname in{0} " \
+                              "	  AND pgc.relname in {0} " \
                               "	ORDER BY table_name,column_name"
     MULTI_KEY_CONCATENATION_STRING = '::'
     CONFIG_TABLES = 'Tables'
     CONFIG_DATABASE = 'Database'
     POSTGRES_DATA_TYPE_SIZE_MAP = {'bigint': 8, 'boolean': 1, 'date': 4, 'integer': 4, 'smallint': 2, 'double': 8}
+    POSTGRES_WHERE_CLAUSE_OPERATORS_LIST = ['<', '>', '<=', '>=', '=', '<>', '!=', ' IS ', ' is ', ' isnull', ' ISNULL',
+                                            ' NOTNULL', ' notnull']
+    POSTGRES_WHERE_CLAUSE_BOOLEAN_OPERATIONS_LIST = [' AND ', ' and ', 'or ', 'OR ']
+    POSTGRES_BOOLEAN_OPERATIONS_LIST_AS_STRING = "|".join(POSTGRES_WHERE_CLAUSE_BOOLEAN_OPERATIONS_LIST)
+    POSTGRES_PREDICATE_OPERATIONS_LIST_AS_STRING = "|".join(POSTGRES_WHERE_CLAUSE_OPERATORS_LIST)
+    POSTGRES_ORDER_BY_GROUP_BY_KEYWORDS = "GROUP BY|group by|ORDER by|order by|limit |LIMIT "
+    POSTGRES_KEYWORD_FROM = "from |FROM ";
+    POSTGRES_KEYWORD_WHERE = "where | WHERE";
+
     # this is added to restrict modification of constant attributes/ fields
     def __setattr__(self, *_):
         pass

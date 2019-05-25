@@ -13,7 +13,8 @@ class Utils:
         return dict(config.items(section))
 
     @staticmethod
-    def get_queries_from_sql_file(tables_map: Dict[str, Table]):
+    def get_queries_from_sql_file(columns_map: Dict[str, List[str]]):
+        Query.reset()
         sql_file = open('../temp.sql', 'r')
         file_content = sql_file.read()
         sql_file.close()
@@ -21,6 +22,5 @@ class Utils:
         for query_text in file_content.split(';'):
             # remove comments
             if query_text.strip() != '':
-                queries_list.append(Query(query_text, tables_map))
-        return queries_list
-
+                queries_list.append(Query(query_text, columns_map))
+        return queries_list,Query.all_predicates
