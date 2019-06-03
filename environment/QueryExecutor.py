@@ -1,16 +1,18 @@
 # imports
 from typing import Dict, List
-from environment.PostgresQueryHandler import PostgresQueryHandler
-from environment.Utils import Utils
-from environment.Constants import Constants
-from environment.Table import Table
+
 from environment.Column import Column
+from environment.Constants import Constants
+from environment.PostgresQueryHandler import PostgresQueryHandler
+from environment.Table import Table
+from environment.Utils import Utils
 
 
 # class
 class QueryExecutor:
     # tables_map will hold table name and columne details
     tables_map: Dict[str, Table] = dict()
+    column_map: Dict[str, List[str]] = dict()
 
     @staticmethod
     def initialize_table_information():
@@ -55,6 +57,11 @@ class QueryExecutor:
 
             # add column  to table object
             QueryExecutor.tables_map[table_name].add_column(Column(column_name, data_type, data_size))
+            # check whether map entry exists for column name if not create one
+            if column_name not in QueryExecutor.column_map:
+                QueryExecutor.column_map[column_name] = list()
+            # add column as key and table as value for easier find
+            QueryExecutor.column_map[column_name].append(table_name)
 
     @staticmethod
     def create_query_matrix(queries: List[str]):
@@ -69,7 +76,20 @@ class QueryExecutor:
 
 query_executor = QueryExecutor()
 query_executor.initialize_table_information()
-Utils.get_queries_from_sql_file(query_executor.tables_map)
-#query_executor.create_query_matrix(Utils.get_queries_from_sql_file())
+queries_list,all_predicates=Utils.get_queries_from_sql_file(query_executor.column_map)
+for  query in queries_list:
+    print('************************************')
+    print('QUERY :'+ query.query_string)
+    print('******************')
+    print('**EXTRACTED PREDICATES**')
+    print('******************')
+    for key,value in query.where_clause_columns_query.items():
+        print(key+'   :  '+value)
+        print()
+    print('******************')
+
+print(all_predicates)
+
+# query_executor.create_query_matrix(Utils.get_queries_from_sql_file())
 # for key, value in query_executor.tables_map.items():
 #     print(value)
