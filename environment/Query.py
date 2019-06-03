@@ -1,21 +1,28 @@
 from typing import Set, Dict, List
+from environment.Constants import Constants
+from environment.Table import Table
 import sqlparse
 import re
-from environment.Constants import Constants
+from environment import PostgresQueryHandler
 
 
 # this class parses only simple queries to extract each where condition and form a seperate query
 #  which is used in later stages to find selectivity of each column
 
+
 class Query:
     query_string: str
     # key will hold "table_name::column_name" and value will hold the selectivity query
     where_clause_columns_query: Dict[str, str]
+    selectivity_for_where_clause_columns: Dict[str, float] = dict()
     all_predicates: Set[str] = set()
+    idx_advisor_suggested_indexes: Set[str] = set()
+    query_cost_without_index: float
+    query_cost_with_idx_advisor_suggestion: float
 
-    def __init__(self, query_string, columns_map: Dict[str, List[str]]):
+    def __init__(self, query_string, columns_map: Dict[str, List[str]], tables_map: Dict[str, Table]):
         # parse the query with sql parse to remove comments and correct identation for efficient parsing
-        self.query_string = sqlparse.format(query_string, strip_comments=True, reindent=True).strip()
+        self.query_string = sqlparse.format(query_string, strip_comments=True, reindent=True, wrap_after=100).strip()
         self.where_clause_columns_query = dict()
         # split to get contents of different sections of query, i.e from section, where clause, order by , group by
         # we need only from and where clause section to find the selectivity of each predicate
@@ -52,8 +59,13 @@ class Query:
                 table_alias_dict.update({tbl_data[1]: tbl_data[0]})
         # extra where section data
         # get individual predicates
-        for predicate in re.split(Constants.POSTGRES_BOOLEAN_OPERATIONS_LIST_AS_STRING, where_section):
-            predicate = predicate.strip().replace('\n', '').replace('\r', '')
+        for predicate_line in where_section.splitlines():
+            predicate_line = predicate_line.strip().replace('\n', '').replace('\r', '')
+            if re.search(Constants.POSTGRES_BOOLEAN_OPERATIONS_LIST_AS_STRING, predicate_line) is not None:
+                predicate = predicate_line[
+                            re.search(Constants.POSTGRES_BOOLEAN_OPERATIONS_LIST_AS_STRING, predicate_line).end():]
+            else:
+                predicate = predicate_line
             splitted_predicate = re.split(Constants.POSTGRES_PREDICATE_OPERATIONS_LIST_AS_STRING,
                                           ' '.join(predicate.split()))
             left_expr = splitted_predicate[0].strip()
@@ -82,16 +94,38 @@ class Query:
                         is_predicate_used_for_selectivity = False
             if is_predicate_used_for_selectivity:
                 table_with_alias = self.find_matching_table_for_column(columns_map, table_alias_dict, left_expr)
-                key = table_with_alias.split(' ')[-1] + Constants.MULTI_KEY_CONCATENATION_STRING + left_expr.split('.')[
+                key = table_with_alias.split(' ')[0] + Constants.MULTI_KEY_CONCATENATION_STRING + left_expr.split('.')[
                     -1]
                 value = Constants.QUERY_FIND_SELECTIVITY.format(table_with_alias, predicate)
                 self.where_clause_columns_query[key] = value
                 Query.all_predicates.add(key)
+                self.calculate_predicate_selectivity(key, value, tables_map)
+        # run explain plan to get query cost without indexes and index suggestions from pg_idx_advisor
+
+        # get explain plan
+        result = PostgresQueryHandler.PostgresQueryHandler.execute_select_query(self.query_string, True, True)
+        explain_plan = ' \n'.join(map(str, result))
+        print(explain_plan)
+        # extract cost
+        cost_pattern = "cost=(.*)row"
+        index_pattern = "(create index.+?(?='))"
+        cost_match = re.search(cost_pattern, explain_plan)
+        if cost_match is not None:
+            self.query_cost_without_index = cost_match.group(1).split('..')[-1]
+
+        for match in re.finditer(index_pattern, explain_plan):
+            # this statment will filter create index statements and
+            # then will extract table name and column name in a array at pos 0 and 1 respectively
+            table_col = explain_plan[match.start():match.end()].split(' on ')[1].replace('(', ' ').replace(')',
+                                                                                                           '').strip().split(
+                ' ')
+            Query.idx_advisor_suggested_indexes.add(
+                table_col[0] + Constants.MULTI_KEY_CONCATENATION_STRING + table_col[1])
+
 
     @staticmethod
     def find_matching_table_for_column(columns_map: Dict[str, List[str]], table_alias_dict: Dict[str, str],
                                        col_name: str):
-
         table_str: str = ''
         if col_name.find('.') != -1:
             table_str = table_alias_dict.get(col_name.split('.')[0]) + ' ' + col_name.split('.')[0]
@@ -109,3 +143,18 @@ class Query:
     @staticmethod
     def reset():
         Query.all_predicates.clear()
+
+    @staticmethod
+    def add_idx_advisor_suggested_indexes(table_name: str, col_name: str):
+        Query.idx_advisor_suggested_indexes.add(table_name + Constants.MULTI_KEY_CONCATENATION_STRING + col_name)
+
+    @staticmethod
+    def calculate_predicate_selectivity(key: str, query: str, tables_map: Dict[str, Table]):
+        # check whether predicate selectivity is already calculated, if not calculate
+        if key not in Query.selectivity_for_where_clause_columns:
+            # get number of rows for the predicate
+            number_of_selected_rows = PostgresQueryHandler.PostgresQueryHandler.execute_count_query(query)
+            # get total number of rows in table
+            # get table name from key , key is stored in format table_name::col_name
+            total_rows = tables_map[key.split('::')[0]].number_of_rows
+            Query.selectivity_for_where_clause_columns[key] = (number_of_selected_rows / total_rows)

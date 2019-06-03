@@ -39,12 +39,32 @@ class PostgresQueryHandler:
         return PostgresQueryHandler.connection
 
     @staticmethod
-    def execute_select_query(query):
+    def execute_select_query(query: str, load_index_advisor: bool = False, get_explain_plan: bool = False):
         cursor = PostgresQueryHandler.__get_connection().cursor()
+        if load_index_advisor:
+            cursor.execute(Constants.LOAD_PG_IDX_ADVISOR)
+        if get_explain_plan:
+            query = Constants.QUERY_EXPLAIN_PLAN.format(query)
         cursor.execute(query)
         returned_rows = cursor.fetchall()
         cursor.close()
         return returned_rows
+
+    @staticmethod
+    def get_table_row_count(table_name):
+        cursor = PostgresQueryHandler.__get_connection().cursor()
+        cursor.execute(Constants.QUERY_FIND_NUMBER_OF_ROWS.format(table_name))
+        returned_count = cursor.fetchone()
+        cursor.close()
+        return returned_count[0]
+
+    @staticmethod
+    def execute_count_query(query):
+        cursor = PostgresQueryHandler.__get_connection().cursor()
+        cursor.execute(query)
+        returned_count = cursor.fetchone()
+        cursor.close()
+        return returned_count[0]
 
     @staticmethod
     def execute_select_query_and_get_row_count(query):

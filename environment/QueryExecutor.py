@@ -53,7 +53,9 @@ class QueryExecutor:
 
             # check whether map entry exists for table if not create one
             if table_name not in QueryExecutor.tables_map:
-                QueryExecutor.tables_map[table_name] = Table(table_name)
+                # get number of rows add it to table object
+                QueryExecutor.tables_map[table_name] = Table(table_name,
+                                                             PostgresQueryHandler.get_table_row_count(table_name))
 
             # add column  to table object
             QueryExecutor.tables_map[table_name].add_column(Column(column_name, data_type, data_size))
@@ -76,20 +78,22 @@ class QueryExecutor:
 
 query_executor = QueryExecutor()
 query_executor.initialize_table_information()
-queries_list,all_predicates=Utils.get_queries_from_sql_file(query_executor.column_map)
-for  query in queries_list:
+queries_list, all_predicates,idx_advisor_suggested_indexes = Utils.get_queries_from_sql_file(query_executor.column_map,query_executor.tables_map)
+for query in queries_list:
     print('************************************')
-    print('QUERY :'+ query.query_string)
+    print('QUERY :' + query.query_string)
     print('******************')
     print('**EXTRACTED PREDICATES**')
     print('******************')
-    for key,value in query.where_clause_columns_query.items():
-        print(key+'   :  '+value)
+    for key, value in query.where_clause_columns_query.items():
+        print(key + '   :  ' + value+' : '+str(query.selectivity_for_where_clause_columns[key])+'  : '+str(query.query_cost_without_index))
         print()
     print('******************')
 
+print(' all predicates ')
 print(all_predicates)
-
+print('all suggested indexes')
+print(idx_advisor_suggested_indexes)
 # query_executor.create_query_matrix(Utils.get_queries_from_sql_file())
 # for key, value in query_executor.tables_map.items():
 #     print(value)
